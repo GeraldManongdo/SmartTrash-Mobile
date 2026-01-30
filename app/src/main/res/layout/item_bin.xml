@@ -22,8 +22,8 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="#ECFDF5"
-                android:padding="8dp"
-                android:src="@drawable/ic_recycle"
+                android:padding="9dp"
+                android:src="@drawable/sharp_restore_from_trash_24"
                 app:tint="@color/primary_green" />
 
             <LinearLayout

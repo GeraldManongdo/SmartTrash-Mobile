@@ -1,5 +1,6 @@
 package com.example.smarttrash
 
+import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ImageButton
@@ -9,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -18,7 +20,8 @@ class BinDetailsActivity : ComponentActivity() {
 
     private lateinit var db: FirebaseFirestore
     private var binId: String? = null
-    
+    private var binName: String = "Unknown Bin"
+
     private lateinit var dryProgress: ProgressBar
     private lateinit var wetProgress: ProgressBar
     private lateinit var dryPercent: TextView
@@ -80,6 +83,7 @@ class BinDetailsActivity : ComponentActivity() {
                 .addOnSuccessListener { doc ->
                     val bin = doc.toObject(Bin::class.java)
                     bin?.let {
+                        binName = it.name
                         findViewById<TextView>(R.id.detailBinName).text = it.name
                         findViewById<TextView>(R.id.detailBinLocation).text = "Location: ${it.location}"
                         findViewById<TextView>(R.id.detailLastCollected).text = "Last Collected: ${it.lastCollected}"
@@ -112,6 +116,20 @@ class BinDetailsActivity : ComponentActivity() {
 
             db.collection("bins").document(id).update(updates)
                 .addOnSuccessListener {
+                    val sharedPref = getSharedPreferences("SmartTrashPrefs", MODE_PRIVATE)
+                    val userId = sharedPref.getString("userId", "") ?: ""
+                    val email = sharedPref.getString("userEmail", "") ?: ""
+                    
+                    // Log general update activity
+                    logActivity(userId, email, "Updated levels for bin: $binName", "Update Bin")
+                    
+                    // Add special alert/activity if critical or warning
+                    if (status != "normal") {
+                        val alertMsg = "Bin '$binName' reached $status level ($dry% Dry, $wet% Wet). Needs collection!"
+                        logActivity(userId, email, alertMsg, "Alert")
+                        createAlert(id, "Critical Bin Level", alertMsg)
+                    }
+
                     Toast.makeText(this, "Levels updated successfully", Toast.LENGTH_SHORT).show()
                 }
                 .addOnFailureListener { e ->
@@ -122,10 +140,20 @@ class BinDetailsActivity : ComponentActivity() {
 
     private fun collectTrash() {
         binId?.let { id ->
+            val sharedPref = getSharedPreferences("SmartTrashPrefs", MODE_PRIVATE)
+            val userId = sharedPref.getString("userId", "") ?: ""
+            val email = sharedPref.getString("userEmail", "") ?: ""
+            val userName = sharedPref.getString("userName", "") ?: "User"
+
+            if (userId.isEmpty()) {
+                Toast.makeText(this, "User session error. Please re-login.", Toast.LENGTH_SHORT).show()
+                return@let
+            }
+
             val sdf = SimpleDateFormat("M/d/yyyy, h:mm:ss a", Locale.getDefault())
             val currentTime = sdf.format(Date())
 
-            val updates = mapOf(
+            val binUpdates = mapOf(
                 "dryLevel" to 0,
                 "wetLevel" to 0,
                 "status" to "normal",
@@ -133,14 +161,59 @@ class BinDetailsActivity : ComponentActivity() {
                 "updatedAt" to Timestamp.now()
             )
 
-            db.collection("bins").document(id).update(updates)
+            db.collection("bins").document(id).update(binUpdates)
                 .addOnSuccessListener {
-                    Toast.makeText(this, "Trash collected!", Toast.LENGTH_SHORT).show()
-                    fetchBinDetails() // Refresh UI
+                    awardPoints(userId, email, userName)
+                    logActivity(userId, email, "Collected trash from bin: $binName", "Collect Trash")
+                    Toast.makeText(this, "Trash collected! +10 Points", Toast.LENGTH_SHORT).show()
+                    fetchBinDetails()
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "Collection failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
         }
+    }
+
+    private fun awardPoints(userId: String, email: String, name: String) {
+        val pointsRef = db.collection("points").document(userId)
+        pointsRef.get().addOnSuccessListener { document ->
+            if (document.exists()) {
+                pointsRef.update("totalPoints", FieldValue.increment(10), "updatedAt", Timestamp.now())
+            } else {
+                val newPoints = mapOf(
+                    "userId" to userId,
+                    "email" to email,
+                    "name" to name,
+                    "totalPoints" to 10,
+                    "createdAt" to Timestamp.now(),
+                    "updatedAt" to Timestamp.now()
+                )
+                pointsRef.set(newPoints)
+            }
+        }
+    }
+
+    private fun logActivity(userId: String, email: String, activityText: String, type: String) {
+        val activity = mapOf(
+            "activity" to activityText,
+            "type" to type,
+            "email" to email,
+            "page" to "BinDetailsActivity",
+            "timestamp" to Timestamp.now(),
+            "userAgent" to "Android App (${Build.MANUFACTURER} ${Build.MODEL})",
+            "userId" to userId
+        )
+        db.collection("user_activities").add(activity)
+    }
+
+    private fun createAlert(binId: String, title: String, message: String) {
+        val alert = mapOf(
+            "binId" to binId,
+            "title" to title,
+            "message" to message,
+            "timestamp" to Timestamp.now(),
+            "isRead" to false
+        )
+        db.collection("alerts").add(alert)
     }
 }

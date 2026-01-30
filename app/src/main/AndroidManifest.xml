@@ -30,6 +30,18 @@
             android:name=".BinDetailsActivity"
             android:exported="false"
             android:theme="@style/Theme.SmartTrash" />
+        <activity
+            android:name=".PointsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartTrash" />
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartTrash" />
+        <activity
+            android:name=".AlertsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartTrash" />
     </application>
 
 </manifest>

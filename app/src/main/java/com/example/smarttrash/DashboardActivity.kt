@@ -3,11 +3,22 @@ package com.example.smarttrash
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidViewBinding
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.example.smarttrash.databinding.ActivityDashboardBinding
+import com.example.smarttrash.ui.SmartTrashLogo
+import com.example.smarttrash.ui.theme.SmartTrashTheme
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.firestore.FirebaseFirestore
 
 class DashboardActivity : ComponentActivity() {
@@ -18,16 +29,33 @@ class DashboardActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_dashboard)
-
         db = FirebaseFirestore.getInstance()
 
-        setupRecyclerView()
-        fetchBins()
+        setContent {
+            SmartTrashTheme {
+                AndroidViewBinding(ActivityDashboardBinding::inflate) {
+                    val logoContainer = root.findViewById<FrameLayout>(R.id.logoContainer)
+                    if (logoContainer.childCount == 0) {
+                        logoContainer.addView(ComposeView(this@DashboardActivity).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            setContent {
+                                SmartTrashLogo(modifier = Modifier.size(40.dp))
+                            }
+                        })
+                    }
+
+                    setupRecyclerView(binsRecyclerView)
+                    setupBottomNavigation(bottomNavigation)
+                    fetchBins(binCountSummary, totalBinsText, criticalBinsText, warningBinsText, priorityCard, prioritySubtext)
+                }
+            }
+        }
     }
 
-    private fun setupRecyclerView() {
-        val recyclerView = findViewById<RecyclerView>(R.id.binsRecyclerView)
+    private fun setupRecyclerView(recyclerView: androidx.recyclerview.widget.RecyclerView) {
         recyclerView.layoutManager = LinearLayoutManager(this)
         binAdapter = BinAdapter(binsList) { bin ->
             val intent = Intent(this, BinDetailsActivity::class.java)
@@ -37,7 +65,36 @@ class DashboardActivity : ComponentActivity() {
         recyclerView.adapter = binAdapter
     }
 
-    private fun fetchBins() {
+    private fun setupBottomNavigation(bottomNav: BottomNavigationView) {
+        bottomNav.selectedItemId = R.id.nav_bins
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_bins -> true
+                R.id.nav_alerts -> {
+                    startActivity(Intent(this, AlertsActivity::class.java))
+                    true
+                }
+                R.id.nav_points -> {
+                    startActivity(Intent(this, PointsActivity::class.java))
+                    true
+                }
+                R.id.nav_profile -> {
+                    startActivity(Intent(this, ProfileActivity::class.java))
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun fetchBins(
+        binCountSummary: TextView,
+        totalBinsText: TextView,
+        criticalBinsText: TextView,
+        warningBinsText: TextView,
+        priorityCard: View,
+        prioritySubtext: TextView
+    ) {
         db.collection("bins").addSnapshotListener { snapshots, e ->
             if (e != null) {
                 Toast.makeText(this, "Listen failed: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -61,22 +118,31 @@ class DashboardActivity : ComponentActivity() {
                 }
                 
                 binAdapter.updateBins(binsList)
-                updateSummaryUI(binsList.size, criticalCount, warningCount)
+                updateSummaryUI(
+                    binsList.size, criticalCount, warningCount,
+                    binCountSummary, totalBinsText, criticalBinsText, warningBinsText, priorityCard, prioritySubtext
+                )
             }
         }
     }
 
-    private fun updateSummaryUI(total: Int, critical: Int, warning: Int) {
-        findViewById<TextView>(R.id.binCountSummary).text = "$total bins assigned to you"
-        findViewById<TextView>(R.id.totalBinsText).text = total.toString()
-        findViewById<TextView>(R.id.criticalBinsText).text = critical.toString()
-        findViewById<TextView>(R.id.warningBinsText).text = warning.toString()
+    private fun updateSummaryUI(
+        total: Int, critical: Int, warning: Int,
+        binCountSummary: TextView,
+        totalBinsText: TextView,
+        criticalBinsText: TextView,
+        warningBinsText: TextView,
+        priorityCard: View,
+        prioritySubtext: TextView
+    ) {
+        binCountSummary.text = "$total bins assigned to you"
+        totalBinsText.text = total.toString()
+        criticalBinsText.text = critical.toString()
+        warningBinsText.text = warning.toString()
 
-        val priorityCard = findViewById<View>(R.id.priorityCard)
         if (critical > 0 || warning > 0) {
             priorityCard.visibility = View.VISIBLE
-            findViewById<TextView>(R.id.prioritySubtext).text = 
-                "$critical critical bin needs immediate attention. $warning bin is at warning level."
+            prioritySubtext.text = "$critical critical bin needs immediate attention. $warning bin is at warning level."
         } else {
             priorityCard.visibility = View.GONE
         }
