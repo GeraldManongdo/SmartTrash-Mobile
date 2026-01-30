@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "684188138536",
+    "project_id": "smarttrashbin-873fd",
+    "storage_bucket": "smarttrashbin-873fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684188138536:android:57132150cd7d550adc891d",
+        "android_client_info": {
+          "package_name": "com.example.smarttrash"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPPeyea-JkcgMuw4qltlJ_zq7DlfhBsPA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
