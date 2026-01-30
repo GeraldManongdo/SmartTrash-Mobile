@@ -33,18 +33,6 @@ class DashboardActivity : ComponentActivity() {
         setContent {
             SmartTrashTheme {
                 AndroidViewBinding(ActivityDashboardBinding::inflate) {
-                    // Use binding.logoContainer directly
-                    if (logoContainer.childCount == 0) {
-                        logoContainer.addView(ComposeView(this@DashboardActivity).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setContent {
-                                SmartTrashLogo(modifier = Modifier.size(40.dp))
-                            }
-                        })
-                    }
 
                     setupRecyclerView(binsRecyclerView)
                     setupBottomNavigation(bottomNavigation)
